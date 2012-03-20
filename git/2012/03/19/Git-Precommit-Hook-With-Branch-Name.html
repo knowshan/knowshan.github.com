@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+   <title>Git pre-commit message hook for ticket numbered branches</title>
+   <link rel="stylesheet" href="/css/bootstrap/bootstrap.css"/>
+   
+   <script src="/js/jquery.js" type="text/javascript" charset="utf-8"></script>
+   <script src="/js/jquery.autotoc.js" type="text/javascript" charset="utf-8"></script>
+   <script src="/js/bootstrap/bootstrap.js" type="text/javascript" charset="utf-8"></script>
+   <style type="text/css">
+     body {
+       padding-top: 60px;
+       padding-bottom: 40px;
+     }
+    .sidebar-nav {
+      padding: 9px 0;
+    }
+  </style> 
+   <link rel="stylesheet" href="/css/bootstrap/bootstrap-responsive.css"/>
+  </head>
+  <body>
+    <div class="navbar navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container-fluid">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          <a class="brand" href="/">knowshantanu.github.com</a>
+          <div class="nav-collapse">
+            <ul class="nav">
+              <li class="active">
+                <a href="/">Home</a>
+              </li>
+              <li class="">
+                <a href="http://github.com/knowshantanu">github</a>
+              </li>
+            </ul>
+          </div>
+        </div> 
+      </div>
+    </div>
+    <div class="container-fluid">
+      <div class="row-fluid">
+        <div class="span2">
+          <div class="well sidebar-nav">
+            <ul class="nav nav-list">
+              <!--
+              <li class="nav-header">Sidebar</li>
+              <li class="active"><a href="#">Link</a></li>
+              <li><a href="#">Link</a></li>
+              <li><a href="#">Link</a></li>
+              <li><a href="#">Link</a></li>
+              <li><a href="#">Link</a></li> -->
+              <li class="nav-header">Categories</li>
+ <li class='category'><a href='/categories/git/'>git (1)</a></li>
+<li class='category'><a href='/categories/test/'>test (1)</a></li>
+
+</li>
+
+            </ul>
+          </div> <!--/.well sidebar-nav-->
+        </div> <!-- span2 -->
+        <div class="span10">
+          <div class="hero-unit"> 
+          <div class="post">
+  <h2>Git pre-commit message hook for ticket numbered branches</h2>
+  <div class="date">March 19, 2012</div>
+  </div>
+  <br />
+  <div class="body">
+  <p><strong> Git Hooks </strong></p>
+
+<p>Git hooks are custom scripts that trigger upon certain git command.  The <a href="http://progit.org/book/ch7-3.html">ProGit</a> book has explained Git hooks mechanism in detail so I recommend reading it before proceeding with following sections.</p>
+
+<p><strong> Prepare commit message </strong></p>
+
+<p>In many projects a version control system (Git) is integrated with a project management software (trac). Most of the development activities or issues are tracked using 'ticket' system of the project management software and then actual coding activity is tracked or versioned using the version control system (VCS). The distributed VCS like Git make '<a href="http://gitref.org/branching/">branching</a>' a lot easier than centralised VCS like Subversion which allows developers to switch contexts and keep different development activities isolated from each other. In fact it is a recommended practice to use 'branches' for tracking and sharing development activities.</p>
+
+<p>Often it is useful to name a 'branch' corresponding to a ticket number in the project management or issue tracking software rather than a descriptive name which might become confusing at some later stage. Also, it is a good practice to reference these ticket numbers  in the version control system's history (commit messages) so that tickets and corresponding development activity (code changes) can be cross-referenced easily.</p>
+
+<p>Follwing are two pre-commit hook examples which help in auto-populating the current working branch name (assumed to be ticket number) in the commit message template.</p>
+
+<p><strong><em> Sed </em></strong></p>
+
+<div class="highlight"><pre><code class="bash"> 
+  <span class="nv">msg</span><span class="o">=</span><span class="sb">`</span>git branch | sed -e <span class="s1">&#39;/^[^*]/d&#39;</span> -e <span class="s1">&#39;s/* \(.*\)/# Commit for [galaxy:ticket:\1]/&#39;</span><span class="sb">`</span>
+  sed -i -e <span class="s2">&quot;1i $msg&quot;</span> <span class="s2">&quot;$1&quot;</span>
+</code></pre>
+</div>
+
+
+<p>The above example uses GNU sed and hence it doesn't work on the Mac OS which uses BSD sed.</p>
+
+<p><strong><em> Ruby </em></strong></p>
+
+<p>Below is a Ruby one-liner example that works on any system with a Ruby interperter (tested with Matz MRI 1.8.7).</p>
+
+<div class="highlight"><pre><code class="ruby">  <span class="n">ruby</span>  <span class="o">-</span><span class="n">i</span> <span class="o">-</span><span class="n">pe</span> <span class="s1">&#39;puts `git branch`.split(/\n/).select {|e| e =~ /\*.*/}.to_s.sub(/\* /,&quot;# Commit for [galaxy:ticket:&quot;).concat(&quot;]&quot;) if $.==1&#39;</span> <span class="s2">&quot;$1&quot;</span>
+</code></pre>
+</div>
+
+
+<p>These examples will need to modified according to your ticket-branch naming conventions and other syntax requirements of your project or issue tracking software.</p>
+
+  </div>
+</div>
+ 
+          </div>
+        </div>    
+      </div> <!-- row fluid -->
+        <hr>
+        <footer>
+          CSS and JavaScript: <a href="http://jquery.com">jquery</a> and <a href="http://twitter.github.com/bootstrap"> Bootstrap from Twitter</a>. Plugins: <a href="http://blog.nistu.de/2011/08/14/a-category-list-generator-for-jekyll">Category list generator</a> and <a href="http://recursive-design.com/blog/2010/12/08/jekyll-plugins-for-categories-projects-and-sitemaps/"> Recursive Design category index page generator</a>.     
+        </footer>
+    </div> <!-- container-fluid -->
+  </body>
+</html>
+
