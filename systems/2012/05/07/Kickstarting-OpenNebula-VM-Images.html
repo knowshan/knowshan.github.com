@@ -55,7 +55,8 @@
               <li><a href="#">Link</a></li>
               <li><a href="#">Link</a></li> -->
               <li class="nav-header">Categories</li>
- <li class='category'><a href='/categories/git/'>git (1)</a></li>
+ <li class='category'><a href='/categories/Test/'>Test (1)</a></li>
+<li class='category'><a href='/categories/git/'>git (1)</a></li>
 <li class='category'><a href='/categories/programming/'>programming (1)</a></li>
 <li class='category'><a href='/categories/systems/'>systems (2)</a></li>
 <li class='category'><a href='/categories/test/'>test (1)</a></li>
@@ -75,299 +76,53 @@
   <div class="body">
   <p>IaaS cloud environments like OpenNebula allow users to launch VMs starting from a copy of a base image. Since a base image is used to launch several new VM instances, it is important to know how the base image itself was created. This can be done by scripting an OS installation step. One of the most common methods to script a CentOS, RHEL or Fedora type distro installation is a <a href="http://fedoraproject.org/wiki/Anaconda/Kickstart">kickstart installation method</a>. There are other options, e.g. <a href="http://cobbler.github.com/">cobbler</a>, however I am not very familiar with those options yet. Following are my notes on creating CentOS 6 VM images for the OpenNebula IaaS cloud. Although these notes highlight things specific to OpenNebula images, they can be adapted for other kickstart based VM installation on a KVM-libvirt platform as well. Required tools for the job are: KVM, libvirt, virt-tools, git and OpenNebula.</p>
 
-<h2>Kickstart installation</h2>
-
-<p>Kickstart installation method allows system administrators to perform a scripted installation where answers to installation questions or configuration details are provided through a single file. A kickstart file is an installation script which can be used to install systems in a predictable manner. The kickstart file is downloaded and then read by a boot image kernel to kickstart the installation process. The kickstart file can be can be read from a local disk and network location such as NFS, HTTP or FTP as well. Check out following links for more information on kickstart installation method and file's syntax:</p>
-
-<ul>
-<li><a href="http://fedoraproject.org/wiki/Anaconda/Kickstart">Fedora wiki</a></li>
-<li><a href="http://docs.redhat.com/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Installation_Guide/ch-kickstart2.html">RHEL 6 documentation</a></li>
-</ul>
-
-
-<h3>Main kickstart file</h3>
-
-<p>Following is an example kickstart script for creating a generic developer VM image. The kickstart file's syntax is quite self-explanatory. Refer to aforementioned documentation links for additional options and detailed information guide.</p>
-
-<script src='https://gist.github.com/2628610.js?file=one-image-generic.ks'></script>
-
-
-<div><noscript><pre><code>######################################################## 
-### one-image-generic EL6 kickstart file ### 
-########################################################
-
-# Install OS
-install
-text
-
-# Installation logging level
-logging --level=info
-
-# installation media url
-url --url http://192.168.1.7/repo/centos/6/os/x86_64
-
-# Authentication
-auth  --useshadow  --enablemd5 
-
-# System bootloader configuration
-# I haven't password protected bootloader here, but you may want to do so!
-bootloader --location=mbr --append=&quot;rhgb quiet divider=10&quot;
-
-# Run the Setup Agent on first boot
-firstboot --disable
-
-# System keyboard
-keyboard us
-
-# System language
-lang en_US.UTF-8
-
-# System timezone
-timezone  --utc America/Chicago
-
-# Root password not given in the kickstart - will be prompted
-
-# Network settings
-network --device eth0 --bootproto static --ip 192.168.1.18 --netmask 255.255.0.0 --gateway 192.168.1.2 --nameserver 192.168.1.2 --hostname one-image-generic.uabgrid.uab.edu --noipv6
-
-# Firewall configuration
-firewall --enabled --ssh 
-
-# SELinux configuration
-selinux --permissive
-
-# authconfig - pam_ldap
-authconfig --enableshadow --passalgo=sha512 --enableldapauth --enableldaptls --ldapserver peopledb.uab.edu --ldapbasedn ou=staff,dc=uab,dc=edu
-
-# Do not configure the X Window System
-skipx
-
-# Partition clearing information
-clearpart --all --initlabel 
-
-# Disk partitioning information
-# Total (40GB) = pv.1 + /boot
-part /boot --fstype=&quot;ext4&quot; --size=256
-part pv.1 --size=1 --grow
-volgroup generic-server_vg00 pv.1
-logvol / --fstype ext4 --name=LogVol00 --vgname=generic-server_vg00 --size=2048 --grow
-
-# System packages 
-%packages --nobase
-rpm
-rpm-libs
-rpm-devel
-rpm-build
-rpmdevtools
-yum
-lvm2
-grub
-sysstat
-ntp
-openssh-server
-openssh-clients
-perl
-wget
-rsync
-gcc
-gcc-c++
-make
-sudo
-man
-which
-patch
-xinetd
-bind-utils
-pam_ldap
-nss-pam-ldapd
-autofs
-nfs-utils
-nfs-utils-lib
-yum-priorities
-openssl
-curl
-curl-devel
-yum-utils 
-httpd
-httpd-devel
-mysql
-mysql-server
-mysql-devel
-php
-php-pear
-php-mysql
-acpid
-audit
-gd
-libgfortran 
-gcc-gfortran
-telnet
-tcpdump
-lsof
-strace
-redhat-lsb
-tcl
-environment-modules
-git-all
-mercurial
-subversion
-subversion-devel
-ruby-libs 
-ruby-docs 
-ruby-devel 
-rubygems 
-ruby-ri
-vim-common
-vim-enhanced
-vim-X11
-emacs
-%end
-
-
-%post
-###########################################################
-### Create scripts to configure the server at first boot ###
-###########################################################
-postinstdir=&quot;/root/post-install&quot;
-postinsturl=&quot;http://192.168.1.7/kickstarts/rcs-el6/post-install&quot;
-host=&quot;one-image-generic&quot;
-
-/bin/mkdir -p $postinstdir/log/{common,nodes/$host} $postinstdir/common $postinstdir/nodes/$host
-
-
-# Build array, Files, containing the post install files
-# IMPORTANT: The order in which they are added is the order in which they will be executed!
-# Common configs - those that can be applied to multiple machines
-Files[${#Files[*]}]=&quot;common/rsyslog-remote-server.sh&quot;
-Files[${#Files[*]}]=&quot;common/repo-el6-config.sh&quot;
-Files[${#Files[*]}]=&quot;common/autofs-config.sh&quot;
-Files[${#Files[*]}]=&quot;common/ntp-config.sh&quot;
-Files[${#Files[*]}]=&quot;common/yum-update-config.sh&quot;
-# Node specific configs
-Files[${#Files[*]}]=&quot;nodes/${host}/root-email.sh&quot;
-Files[${#Files[*]}]=&quot;nodes/${host}/sudo-config.sh&quot;
-Files[${#Files[*]}]=&quot;nodes/${host}/firewall-config.sh&quot;
-Files[${#Files[*]}]=&quot;nodes/${host}/rc-local-contextualize.sh&quot;
-Files[${#Files[*]}]=&quot;nodes/${host}/clear-network-config.sh&quot;
-
-for file in ${Files[@]} ; do 
-   /usr/bin/wget ${postinsturl}/${file} -P ${postinstdir} -O ${postinstdir}/${file}
-done
-
-# Set the execute bit on the post install scripts that you want to run
-/bin/chmod +x $postinstdir/common/*.sh
-/bin/chmod +x $postinstdir/nodes/${host}/*.sh
-
-# if you want to prevent particular scripts from running, remove the execute
-# bit here
-
-# Now run the scripts
-for file in ${Files[@]} ; do 
-  # Only run the files with the execute bit
-  if [ -x $postinstdir/$file ] ; then
-    $postinstdir/$file 2&gt;&amp;1 | tee $postinstdir/log/${file}.log
-  else
-    echo &quot;This script has been disabled and wasn't executed: $postinstdir/$file&quot; &gt; $postinstdir/log/${file}.log
-  fi
-done
-
-unset Files
-
-# Halt or turn-off system after the installation is complete
-/sbin/shutdown -h now
-
-%end</code></pre></noscript></div>
-
-
-<p>An important thing to note in the above kickstart file is that there is no swap disk or swap partition created in the base image. A swap space can be added as a separate disk during actual VM deployment through OpenNebula and hence it's not necessary to configure it in the base image. Also, OpenNebula supports VM's memory (RAM) size changes before deployment and hence in order to keep swap space and memory size in proportion it may help to keep the swap space outside of the base image.</p>
-
-<p>The kickstart method provides an option to run post installation steps after the installation is complete. These post installation steps are added to the '%post' section of the kickstart. At our work place we have divided post installation scripts into two categories:</p>
+<h2 id="kickstart-installation">Kickstart installation</h2>
+<p>Kickstart installation method allows system administrators to perform a scripted installation where answers to installation questions or configuration details are provided through a single file. A kickstart file is an installation script which can be used to install systems in a predictable manner. The kickstart file is downloaded and then read by a boot image kernel to kickstart the installation process. The kickstart file can be can be read from a local disk and network location such as NFS, HTTP or FTP as well. Check out following links for more information on kickstart installation method and file’s syntax:</p>
 
 <ul>
-<li>Scripts common to all nodes/systems: Configuration steps related to rsyslog, autofs and yum repository URLs</li>
-<li>Scripts specific to a node/system: Configuration steps such as initial firewall configuration, sudoers file configuration etc.</li>
+  <li><a href="http://fedoraproject.org/wiki/Anaconda/Kickstart">Fedora wiki</a></li>
+  <li><a href="http://docs.redhat.com/docs/en-US/Red_Hat_Enterprise_Linux/6/html/Installation_Guide/ch-kickstart2.html">RHEL 6 documentation</a></li>
 </ul>
 
+<h3 id="main-kickstart-file">Main kickstart file</h3>
+<p>Following is an example kickstart script for creating a generic developer VM image. The kickstart file’s syntax is quite self-explanatory. Refer to aforementioned documentation links for additional options and detailed information guide.</p>
 
-<p>This post installation pattern with separate namespace for 'common' and 'node' specific scripts was developed by my colleague <a href="https://github.com/flakrat">Mike Hanby</a>. It's really useful pattern as it separates out tasks according to their functionality, reusability and execution sequence. Most of the system configuration is later managed by a configuration management tool like Puppet. However some of the basic or pre-Puppet configuration steps get into the post installation section.</p>
+<script src="https://gist.github.com/2628610.js?file=one-image-generic.ks"></script>
+<div><noscript><pre><code></code></pre></noscript></div>
 
-<p>Note, that above kickstart script will shutdown (halt) the VM after post-installation steps are completed. This is done intentionally as the base image doesn't need to run after installation process has completed. The base image can be registered in the OpenNebula image repository once the system is turned-off.</p>
+<p>An important thing to note in the above kickstart file is that there is no swap disk or swap partition created in the base image. A swap space can be added as a separate disk during actual VM deployment through OpenNebula and hence it’s not necessary to configure it in the base image. Also, OpenNebula supports VM’s memory (RAM) size changes before deployment and hence in order to keep swap space and memory size in proportion it may help to keep the swap space outside of the base image.</p>
 
-<h3>Post install scripts</h3>
+<p>The kickstart method provides an option to run post installation steps after the installation is complete. These post installation steps are added to the ‘%post’ section of the kickstart. At our work place we have divided post installation scripts into two categories:</p>
 
-<p>The above kickstart file shows various post-installation scripts that are run after the installation is complete. I have discussed below some of these scripts which are important from the OpenNebula's base image creation perspective:</p>
+<ul>
+  <li>Scripts common to all nodes/systems: Configuration steps related to rsyslog, autofs and yum repository URLs</li>
+  <li>Scripts specific to a node/system: Configuration steps such as initial firewall configuration, sudoers file configuration etc.</li>
+</ul>
 
-<p><strong> clear-network-config.sh</strong>:
-CentOS 6 uses udev rules to keep network interface configuration persistent after reboot and hence it doesn't bring up a network interface if it's MAC address had changed during the reboot process. When a VM is deployed from the base image it won't have the same MAC address as currently configured in the base image. So the udev rule for keeping network configuration persistent should be removed to bring up network interface successfully. Also, the network configuration used during base image creation can be removed as well. Below is an example script that demonstrates these steps.
-  <script src='https://gist.github.com/2628610.js?file=clear-network-config.sh'></script><div><noscript><pre><code>#!/bin/bash</p>
+<p>This post installation pattern with separate namespace for ‘common’ and ‘node’ specific scripts was developed by my colleague <a href="https://github.com/flakrat">Mike Hanby</a>. It’s really useful pattern as it separates out tasks according to their functionality, reusability and execution sequence. Most of the system configuration is later managed by a configuration management tool like Puppet. However some of the basic or pre-Puppet configuration steps get into the post installation section.</p>
 
-<h1>Clear VM's network config</h1>
+<p>Note, that above kickstart script will shutdown (halt) the VM after post-installation steps are completed. This is done intentionally as the base image doesn’t need to run after installation process has completed. The base image can be registered in the OpenNebula image repository once the system is turned-off.</p>
 
-<p>rm  /etc/udev/rules.d/70-persistent-net.rules
-rm /etc/sysconfig/network-scripts/ifcfg-eth0
-rm /etc/resolv.conf
-rm /etc/sysconfig/network</code></pre></noscript></div></p>
+<h3 id="post-install-scripts">Post install scripts</h3>
+<p>The above kickstart file shows various post-installation scripts that are run after the installation is complete. I have discussed below some of these scripts which are important from the OpenNebula’s base image creation perspective:</p>
 
-<p><strong> rc-local-contextualization.sh</strong>:
-The OpenNebua supports VM contextualization during VM's deployment process. This is typically done by modifying the rc.local script to mount contextualization disk and then run scripts available in it. The contextualization process can be performed in 2-3 different manners with each of them having certain advantages and disadvantages. I will be writing notes on it in a separate blog entry soon. Following is an example where the rc.local script is modified through a post-installation script to mount context ISO disk and then execute scripts available in it during next boot or VM deployment.</p>
+<p>** clear-network-config.sh**:
+CentOS 6 uses udev rules to keep network interface configuration persistent after reboot and hence it doesn’t bring up a network interface if it’s MAC address had changed during the reboot process. When a VM is deployed from the base image it won’t have the same MAC address as currently configured in the base image. So the udev rule for keeping network configuration persistent should be removed to bring up network interface successfully. Also, the network configuration used during base image creation can be removed as well. Below is an example script that demonstrates these steps.
+  <script src="https://gist.github.com/2628610.js?file=clear-network-config.sh"></script>&lt;div&gt;<noscript>&lt;pre&gt;<code></code>&lt;/pre&gt;</noscript>&lt;/div&gt;</p>
 
-<p>   <script src='https://gist.github.com/2628610.js?file=rc-local-contextualization.sh'></script><div><noscript><pre><code>#!/bin/sh</p>
+<p>** rc-local-contextualization.sh**:
+The OpenNebua supports VM contextualization during VM’s deployment process. This is typically done by modifying the rc.local script to mount contextualization disk and then run scripts available in it. The contextualization process can be performed in 2-3 different manners with each of them having certain advantages and disadvantages. I will be writing notes on it in a separate blog entry soon. Following is an example where the rc.local script is modified through a post-installation script to mount context ISO disk and then execute scripts available in it during next boot or VM deployment.</p>
 
-<h1>Update rc.local to</h1>
+<script src="https://gist.github.com/2628610.js?file=rc-local-contextualization.sh"></script>
+<div><noscript><pre><code></code></pre></noscript></div>
 
-<h2>Mount CD-ROM ISO device on boot</h2>
+<p>** firewall-config.sh**:
+It’s good idea to have a firewall configuration in place even if we have removed network configuration from the base image. Also, we may have plans to configure VM’s system firewall during deployment or through external configuration management tool after the deployment, still it’s important to have a restricted firewall active in the base image in case any later deployment step fails or partially completes.</p>
 
-<h2>Run contextualization scripts</h2>
-
-<h2>Unmount CD-ROM ISO device</h2>
-
-<p>cat &gt;&gt; /etc/rc.local &lt;&lt; \EOF</p>
-
-<h2>Added for OpenNebula contextualization</h2>
-
-<h1>http://opennebula.org/documentation:rel3.2:cong</h1>
-
-<h1>Mount CONTEXT drive</h1>
-
-<p>export CONTEXT_DIR=/mnt/context
-export CONTEXT_DEV=/dev/cdrom
-export ERROR_OUT=/tmp/context-mount.errout</p>
-
-<p>mkdir -p $CONTEXT_DIR</p>
-
-<h1>Mount /dev/cdrom device which contains 'contextulization files'</h1>
-
-<p>mount -v -t iso9660 $CONTEXT_DEV $CONTEXT_DIR &gt; $ERROR_OUT 2&gt;&amp;1</p>
-
-<h1>Execute context.sh script if present</h1>
-
-<p>if [[ -f $CONTEXT_DIR/context.sh ]]; then
-  . $CONTEXT_DIR/context.sh
-  . $CONTEXT_DIR/init.sh</p>
-
-<p>else</p>
-
-<pre><code>echo &amp;quot;Can't find $CONTEXT_DIR/context.sh&amp;quot; &amp;gt;&amp;gt; $ERROR_OUT
-</code></pre>
-
-<p>fi</p>
-
-<h1>Unmount CONTEXT drive</h1>
-
-<p>umount -v $CONTEXT_DIR &gt;&gt; $ERROR_OUT  2&gt;&amp;1
-rm -rf $CONTEXT_DIR</p>
-
-<p>EOF
-</code></pre></noscript></div></p>
-
-<p><strong> firewall-config.sh</strong>:
-It's good idea to have a firewall configuration in place even if we have removed network configuration from the base image. Also, we may have plans to configure VM's system firewall during deployment or through external configuration management tool after the deployment, still it's important to have a restricted firewall active in the base image in case any later deployment step fails or partially completes.</p>
-
-<h2>Creating a VM using virt-install</h2>
-
+<h2 id="creating-a-vm-using-virt-install">Creating a VM using virt-install</h2>
 <p>We use KVM virtualization platform and libvirt based <a href="http://virt-tools.org/index.html">virt-tools</a> to interact with it. We can use either <a href="http://virt-manager.org/">virt-manager</a> or virt-install to start a VM installation process using libvirt/virt-tools. Both of these tools accept extra kernel arguments (-x option) where a kickstart installation method can be specified. Following is an example virt-install command to start VM installation:</p>
 
-<pre><code>$ virt-install --connect qemu:///system \
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ virt-install --connect qemu:///system \
 -n $guestname \
 -r 1024 \
 --vcpus=1 \
@@ -380,34 +135,33 @@ It's good idea to have a firewall configuration in place even if we have removed
 --disk path=$datastore/$guestname.img,size=40 \
 -l $repo \
 -x "ks=$ksurl/$ksfile ksdevice=eth0 ip=$guestip netmask=$netmask nameserver=$nameserver1 gateway=$gateway"
-</code></pre>
+</code></pre></div></div>
 
 <p>where,</p>
 
 <ul>
-<li>guestname: Name of the VM/guest</li>
-<li>datastore: File system path to the directory or datastore where VM's disk image will be stored.</li>
-<li>repo: Location/URL of network install tree</li>
-<li>ksurl: URL of the directory holding kickstart files</li>
-<li>ksfile: Name of the kickstart file</li>
+  <li>guestname: Name of the VM/guest</li>
+  <li>datastore: File system path to the directory or datastore where VM’s disk image will be stored.</li>
+  <li>repo: Location/URL of network install tree</li>
+  <li>ksurl: URL of the directory holding kickstart files</li>
+  <li>ksfile: Name of the kickstart file</li>
 </ul>
-
 
 <p>As mentioned earlier the example kickstart script shown here will shutdown the VM after installation process has completed. The base image ($datastore/$guestname.img) can be registered in the OpenNebula image repository after the system is turned-off.</p>
 
-<h2>OpenNebula image registration</h2>
+<h2 id="opennebula-image-registration">OpenNebula image registration</h2>
+<p>A disk image can be registered in the OpenNebula image repository using either Sunstone web interface or <a href="http://opennebula.org/documentation:rel3.4:cli">CLI</a>. Following is an image template that can be registered using ‘oneimage’ command. Please refer to the <a href="http://opennebula.org/documentation:rel3.4:img_template">OpenNebula’s image template guide</a> for detailed information on how to create an image template.</p>
 
-<p>A disk image can be registered in the OpenNebula image repository using either Sunstone web interface or <a href="http://opennebula.org/documentation:rel3.4:cli">CLI</a>. Following is an image template that can be registered using 'oneimage' command. Please refer to the <a href="http://opennebula.org/documentation:rel3.4:img_template">OpenNebula's image template guide</a> for detailed information on how to create an image template.</p>
-
-<pre><code>NAME = "generic-dev"
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>NAME = "generic-dev"
 PATH = "/lustre/vmimages/generic-dev.img"
 TYPE = "OS"
 PUBLIC = YES
 DESCRIPTION = "generic-dev image. Source: one-image-generic.ks, GirRev: rcs-repo@b860da0"
 IMGTYPE=rcs
-</code></pre>
+</code></pre></div></div>
 
 <p>Finally, the most important thing is to maintain our kickstart files and scripts in a version control system like Git and record this revision/commit metadata in the image template. This will help us in tracking and knowing the system profile of the base images and VMs deployed using them.</p>
+
 
   </div>
 <div id="disqus_thread"></div>
